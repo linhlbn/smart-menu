@@ -54,15 +54,10 @@ def check_password():
 try:
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     OPENAI_ENABLED = True
-    PROMPT_TEMPLATE = os.getenv("PROMPT")
-    if not PROMPT_TEMPLATE:
-        st.error("Lỗi: Không tìm thấy PROMPT template trong file .env. Vui lòng kiểm tra cấu hình.", icon="❌")
-        OPENAI_ENABLED = False
 except Exception as e:
-    st.error(f"Lỗi khởi tạo OpenAI Client hoặc đọc .env: {e}. Tính năng AI sẽ bị vô hiệu hóa.", icon="❌")
+    st.error(f"Lỗi khởi tạo OpenAI Client: {e}. Tính năng AI sẽ bị vô hiệu hóa.", icon="❌")
     OPENAI_ENABLED = False
     client = None
-    PROMPT_TEMPLATE = None
 
 if OPENAI_ENABLED and not check_password():
     st.stop()
@@ -101,7 +96,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-conn = sqlite3.connect('user_data.db'); c = conn.cursor()
+conn = sqlite3.connect('user_data.db')
+c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, age INTEGER, height REAL, weight REAL, ideal_weight REAL)''')
 c.execute('''CREATE TABLE IF NOT EXISTS foods (name TEXT PRIMARY KEY, kcal REAL, protein REAL, carb REAL, fat REAL)''')
 
@@ -113,26 +109,46 @@ def reset_database():
         c.execute('''CREATE TABLE foods (name TEXT PRIMARY KEY, kcal REAL, protein REAL, carb REAL, fat REAL)''')
         conn.commit()
         st.success("Đã reset database thành công!", icon="✅")
-        keys_to_clear = ['bmi', 'ideal_w', 'sustainable_daily_calorie_change', 'total_days_needed', 'priority_foods', 'priority_sports', 'avoid_foods', 'generated_plan_content', 'advanced_customization_enabled', 'adv_carb_perc', 'adv_pro_perc', 'adv_lip_perc', 'health_conditions']
+        keys_to_clear = [
+            'bmi', 'ideal_w', 'sustainable_daily_calorie_change', 'total_days_needed',
+            'priority_foods', 'priority_sports', 'avoid_foods', 'generated_plan_content',
+            'advanced_customization_enabled', 'adv_carb_perc', 'adv_pro_perc', 'adv_lip_perc',
+            'health_conditions'
+        ]
         for key in keys_to_clear:
             if key in st.session_state: del st.session_state[key]
         st.rerun()
-    except Exception as e: st.error(f"Lỗi khi reset database: {e}", icon="❌")
+    except Exception as e:
+        st.error(f"Lỗi khi reset database: {e}", icon="❌")
 
 def import_csv(file):
     try:
         df = pd.read_csv(file)
         required_columns = ['name', 'kcal', 'protein', 'carb', 'fat']
         if not all(col in df.columns for col in required_columns):
-            st.error("File CSV thiếu cột cần thiết (name, kcal, protein, carb, fat).", icon="❌"); return False
+            st.error("File CSV thiếu cột cần thiết (name, kcal, protein, carb, fat).", icon="❌")
+            return False
         df.to_sql('foods', conn, if_exists='append', index=False)
-        conn.commit(); st.success("Import dữ liệu từ CSV thành công!", icon="✅"); return True
+        conn.commit()
+        st.success("Import dữ liệu từ CSV thành công!", icon="✅")
+        return True
     except sqlite3.IntegrityError:
-         st.warning("Một số món ăn đã tồn tại trong database và không được thêm lại.", icon="⚠️"); conn.commit(); return True
-    except Exception as e: st.error(f"Lỗi khi import CSV: {e}", icon="❌"); return False
+         st.warning("Một số món ăn đã tồn tại trong database và không được thêm lại.", icon="⚠️")
+         conn.commit(); return True
+    except Exception as e:
+        st.error(f"Lỗi khi import CSV: {e}", icon="❌"); return False
 
-initial_foods = [ ("Cơm trắng (100g)", 130, 2.7, 28, 0.3), ("Ức gà (100g)", 165, 31, 0, 3.6), ("Chuối (1 quả, 120g)", 90, 1, 23, 0.3), ("Sữa tươi (200ml)", 120, 6, 9, 6), ("Heo nạc thăn (100g)", 143, 26, 0, 3.5), ("Bánh mì trắng (1 lát)", 79, 2.7, 15, 1), ("Trứng gà luộc (1 quả)", 78, 6, 0.6, 5), ("Gạo lứt (100g nấu chín)", 123, 2.5, 25, 1), ("Cá hồi nướng (100g)", 208, 20, 0, 13), ("Hạt óc chó (30g)", 196, 4.5, 3.9, 19.5), ("Bơ (trái nhỏ, ~150g)", 240, 3, 13, 22) ]
-try: c.executemany("INSERT OR IGNORE INTO foods (name, kcal, protein, carb, fat) VALUES (?, ?, ?, ?, ?)", initial_foods); conn.commit()
+initial_foods = [
+    ("Cơm trắng (100g)", 130, 2.7, 28, 0.3), ("Ức gà (100g)", 165, 31, 0, 3.6),
+    ("Chuối (1 quả, 120g)", 90, 1, 23, 0.3), ("Sữa tươi (200ml)", 120, 6, 9, 6),
+    ("Heo nạc thăn (100g)", 143, 26, 0, 3.5), ("Bánh mì trắng (1 lát)", 79, 2.7, 15, 1),
+    ("Trứng gà luộc (1 quả)", 78, 6, 0.6, 5), ("Gạo lứt (100g nấu chín)", 123, 2.5, 25, 1),
+    ("Cá hồi nướng (100g)", 208, 20, 0, 13), ("Hạt óc chó (30g)", 196, 4.5, 3.9, 19.5),
+    ("Bơ (trái nhỏ, ~150g)", 240, 3, 13, 22)
+]
+try:
+    c.executemany("INSERT OR IGNORE INTO foods (name, kcal, protein, carb, fat) VALUES (?, ?, ?, ?, ?)", initial_foods)
+    conn.commit()
 except Exception: pass
 
 def calculate_bmi(height, weight):
@@ -181,11 +197,10 @@ def validate_input_with_openai(_client, item, item_type):
         return answer == expected_answer
     except Exception as e:
         st.error(f"Lỗi khi kiểm tra '{item_type}' bằng AI: {e}", icon="⚠️")
-        return False
+        return False # Treat API error as invalid for safety
 
 def generate_plan_stream_with_openai(target_calories, days, age, priority_foods_list, priority_sports_list, avoid_foods_list, advanced_macros=None, health_conditions=None):
     if not client: raise ValueError("OpenAI client not available")
-    if not PROMPT_TEMPLATE: raise ValueError("PROMPT template not loaded from .env")
 
     if advanced_macros:
         carb_perc, protein_perc, fat_perc = advanced_macros['carb'], advanced_macros['pro'], advanced_macros['lip']
@@ -200,17 +215,35 @@ def generate_plan_stream_with_openai(target_calories, days, age, priority_foods_
     avoid_foods_string = f"\n- Món ăn cần tránh: Tuyệt đối KHÔNG dùng: {', '.join([f'{f}' for f in avoid_foods_list])}." if avoid_foods_list else ""
     health_notes = f"\n- Lưu ý sức khỏe: {health_conditions}" if health_conditions else ""
 
-    format_dict = {
-        'target_calories': target_calories, 'goal_type': goal_type, 'days': days,
-        'macro_source': macro_source, 'carb_perc': carb_perc, 'protein_perc': protein_perc, 'fat_perc': fat_perc,
-        'priority_foods_string': priority_foods_string, 'avoid_foods_string': avoid_foods_string,
-        'priority_sports_string': priority_sports_string, 'health_notes': health_notes,
-        'day_2_template': '', 'day_3_template': '', 'day_4_template': '',
-        'day_5_template': '', 'day_6_template': '', 'day_7_template': ''
-    }
+    prompt = f"""Bạn là chuyên gia dinh dưỡng AI của THClinic. Mục tiêu dài hạn của người dùng là điều chỉnh ~{target_calories:.0f} kcal/ngày ({goal_type} cân).
+Hãy tạo kế hoạch chi tiết cho **{days} ngày tới** dựa trên mục tiêu calo hàng ngày này, với tỷ lệ dinh dưỡng ({macro_source}): ~{carb_perc}%C/{protein_perc}%P/{fat_perc}%F.
+{priority_foods_string}{avoid_foods_string}{priority_sports_string}{health_notes}
 
-    day_template = """
-Ngày {day_num} ({date}):
+Yêu cầu:
+1. Tạo kế hoạch chi tiết cho TẤT CẢ {days} ngày theo đúng định dạng Markdown.
+2. KHÔNG DÙNG '...'. Điền đầy đủ thông tin mọi ngày.
+3. Ước tính kcal và dinh dưỡng (C/P/F) cho từng món và tổng mỗi ngày.
+4. Ước tính thời gian, kcal tiêu hao cho mỗi hoạt động thể chất.
+5. Trả lời bằng tiếng Việt.
+
+Định dạng bắt buộc (Lặp lại cấu trúc này cho đủ {days} ngày):
+
+Ngày 1 ({(date.today() + timedelta(days=1)).strftime('%Y-%m-%d')}):
+**Thực đơn:**
+* **Sáng:** Tên món ăn (slg/trọng lượng) - (~AAA kcal, B g C, C g P, D g F)
+* **Trưa:** ...
+* **Chiều:** ...
+* **Tối:** ...
+* **Tổng cộng:** ~XXXX kcal, YYY g C, YYY g P, YYY g F
+**Hoạt động thể chất (chọn 1 phù hợp từ ưu tiên nếu có):**
+1. **Tên HĐ 1:** Mô tả ngắn gọn || **Thời gian:** Z phút || **Ước tính:** ~W kcal
+2. **Tên HĐ 2:** ...
+3. **Tên HĐ 3:** ...
+---
+"""
+    for i in range(1, days):
+        day_num = i + 1; current_date = date.today() + timedelta(days=day_num)
+        prompt += f"""Ngày {day_num} ({current_date.strftime('%Y-%m-%d')}):
 **Thực đơn:**
 * **Sáng:** [Điền...]
 * **Trưa:** [Điền...]
@@ -221,21 +254,13 @@ Ngày {day_num} ({date}):
 1. **Tên HĐ 1:** [Điền...]
 2. **Tên HĐ 2:** [Điền...]
 3. **Tên HĐ 3:** [Điền...]
----"""
-
-    today = date.today()
-    for i in range(1, days + 1):
-        current_date_str = (today + timedelta(days=i)).strftime('%Y-%m-%d')
-        format_dict[f'date_{i}'] = current_date_str
-        if i > 1:
-            format_dict[f'day_{i}_template'] = day_template.format(day_num=i, date=current_date_str)
-
-    final_prompt = PROMPT_TEMPLATE.format(**format_dict)
-    if final_prompt.endswith("\n---"): final_prompt = final_prompt[:-4]
+---
+"""
+    if prompt.endswith("---\n"): prompt = prompt[:-4]
 
     try:
         stream = client.chat.completions.create(
-            model="gpt-4o-mini", messages=[ {"role": "system", "content": "Bạn là AI dinh dưỡng THClinic tiếng Việt. Tuân thủ nghiêm ngặt yêu cầu, định dạng. Hoàn thành đầy đủ mọi ngày."}, {"role": "user", "content": final_prompt} ],
+            model="gpt-4o-mini", messages=[ {"role": "system", "content": "Bạn là AI dinh dưỡng THClinic tiếng Việt. Tuân thủ nghiêm ngặt yêu cầu, định dạng. Hoàn thành đầy đủ mọi ngày."}, {"role": "user", "content": prompt} ],
             temperature=0.5, max_tokens=2500 + (days * 500), stream=True,
         )
         return stream
@@ -343,25 +368,21 @@ def render_preference_list(list_key, title):
         for index, item in enumerate(current_list):
             delete_key = f"del_{list_key}_{index}_{item.replace(' ', '_')}"
             items_to_delete[item] = delete_key
-            list_html += f"<div style='display: flex; align-items: center; background-color: #e9ecef; padding: 3px 8px; border-radius: 5px; font-size: 14px;'><span>{item}</span></div>"
+            list_html += f"""
+            <div style='display: flex; align-items: center; background-color: #e9ecef; padding: 3px 8px; border-radius: 5px; font-size: 14px;'>
+                <span>{item}</span>
+                </div>"""
         list_html += "</div>"
         st.markdown(list_html, unsafe_allow_html=True)
 
         clicked_item_to_delete = None
         st.write("")
-        button_cols = st.columns(len(current_list) if current_list else 1)
-        processed_items_btn = set()
-        col_idx_btn = 0
-
         for item in current_list:
-             if item not in processed_items_btn:
-                 with button_cols[col_idx_btn % len(button_cols)]:
-                     st.markdown('<div class="small-button" style="margin-top: -5px;">', unsafe_allow_html=True)
-                     delete_key = items_to_delete[item]
-                     if st.button(f"Xóa '{item}'", key=delete_key): clicked_item_to_delete = item
-                     st.markdown('</div>', unsafe_allow_html=True)
-                 processed_items_btn.add(item)
-                 col_idx_btn += 1
+             delete_key = items_to_delete[item]
+             st.markdown('<div class="small-button" style="display: inline-block; margin-right: 5px; margin-bottom: 5px;">', unsafe_allow_html=True)
+             if st.button(f"Xóa '{item}'", key=delete_key): clicked_item_to_delete = item
+             st.markdown('</div>', unsafe_allow_html=True)
+
 
     if clicked_item_to_delete:
         if clicked_item_to_delete in st.session_state[list_key]:
@@ -373,8 +394,8 @@ with st.container():
     st.header("2. Tùy chỉnh Kế hoạch")
     st.caption("Thêm các món ăn, môn thể thao bạn yêu thích hoặc các món bạn muốn tránh (AI sẽ kiểm tra tính hợp lệ). Bật tùy chọn nâng cao để điều chỉnh macros và thêm bệnh lý.")
     st.write("")
-    col_pref_input1, col_pref_input2, col_pref_input3 = st.columns(3)
 
+    col_pref_input1, col_pref_input2, col_pref_input3 = st.columns(3)
     with col_pref_input1:
         st.markdown("**Món ăn ưu tiên**")
         new_food = st.text_input("Nhập món ăn:", key="new_priority_foods_input", label_visibility="collapsed", placeholder="Ví dụ: Ức gà...")
@@ -422,9 +443,7 @@ with st.container():
                  st.markdown("**Tỷ lệ dinh dưỡng (%)**")
                  carb_val = st.slider("Carbohydrate (%)", 0, 100, st.session_state.adv_carb_perc, key="adv_carb_slider")
                  max_prot_val = 100 - carb_val
-                 # Ensure protein value doesn't exceed max based on current carb value
-                 current_prot_val = st.session_state.adv_pro_perc if st.session_state.adv_pro_perc <= max_prot_val else max_prot_val
-                 prot_val = st.slider("Protein (%)", 0, max_prot_val, current_prot_val, key="adv_pro_slider")
+                 prot_val = st.slider("Protein (%)", 0, max_prot_val, st.session_state.adv_pro_perc, key="adv_pro_slider")
                  lipid_calc = 100 - carb_val - prot_val
                  lip_val = max(0, lipid_calc)
                  st.session_state.adv_carb_perc = carb_val; st.session_state.adv_pro_perc = prot_val; st.session_state.adv_lip_perc = lip_val
@@ -467,14 +486,14 @@ if 'bmi' in st.session_state and 'ideal_w' in st.session_state:
             show_plan_disabled = sustainable_change is None or not OPENAI_ENABLED
 
             st.write("---")
-            health_condition_valid = True
+            health_condition_valid = True # Assume valid unless advanced is on and text exists
             health_condition_validation_message = ""
-            conditions_text = st.session_state.get('health_conditions', '').strip()
-            if st.session_state.get("advanced_customization_enabled") and conditions_text and OPENAI_ENABLED:
-                 with st.spinner("Kiểm tra thông tin sức khỏe..."):
-                      health_condition_valid = validate_input_with_openai(client, conditions_text, 'condition')
-                      if not health_condition_valid:
-                          health_condition_validation_message = "Mô tả bệnh lý/lưu ý sức khỏe không hợp lệ. Vui lòng kiểm tra lại ở Mục 2."
+            if st.session_state.get("advanced_customization_enabled") and st.session_state.get('health_conditions', '').strip() and OPENAI_ENABLED:
+                with st.spinner("Kiểm tra thông tin sức khỏe..."):
+                     health_condition_valid = validate_input_with_openai(client, st.session_state.health_conditions, 'condition')
+                     if not health_condition_valid:
+                         health_condition_validation_message = "Mô tả bệnh lý/lưu ý sức khỏe không hợp lệ. Vui lòng kiểm tra lại ở mục Tùy chỉnh."
+
 
             plan_button_col, _ = st.columns([1, 2])
             with plan_button_col:
@@ -482,13 +501,13 @@ if 'bmi' in st.session_state and 'ideal_w' in st.session_state:
                  if clicked:
                       if sustainable_change is None: st.error("Vui lòng nhấn 'Tính toán Mục tiêu' trước.", icon="🎯")
                       elif not OPENAI_ENABLED: st.error("Chức năng AI không khả dụng.")
-                      elif not health_condition_valid: st.error(health_condition_validation_message, icon="❌")
+                      elif not health_condition_valid: st.error(health_condition_validation_message, icon="❌") # Show validation error here
                       else:
                            st.session_state.show_plan_clicked = True
                            st.session_state.generated_plan_content = None
 
             if not health_condition_valid and health_condition_validation_message:
-                 st.error(health_condition_validation_message, icon="❌")
+                 st.error(health_condition_validation_message, icon="❌") # Ensure error is visible if button disabled
 
             st.write("---")
             st.subheader("Kế hoạch chi tiết từ AI")
@@ -518,7 +537,7 @@ if 'bmi' in st.session_state and 'ideal_w' in st.session_state:
                     except Exception as e:
                          plan_placeholder.error(f"Lỗi tạo kế hoạch từ AI: {e}", icon="❌"); st.session_state.generated_plan_content = None
                 elif not OPENAI_ENABLED: plan_placeholder.error("Chức năng AI hiện không khả dụng.", icon="⚙️")
-                elif not health_condition_valid: pass
+                elif not health_condition_valid: pass # Error already shown
                 else: plan_placeholder.warning("Chưa có mục tiêu calo bền vững.", icon="⚠️"); st.session_state.generated_plan_content = None
 
             if st.session_state.get('generated_plan_content'):
