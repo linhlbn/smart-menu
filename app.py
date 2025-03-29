@@ -299,9 +299,9 @@ with st.expander("Nhập dữ liệu thực phẩm từ file CSV (Tùy chọn)")
 with st.container():
     st.header("1. Thông tin cá nhân & Mục tiêu")
     col1, col2, col3 = st.columns(3)
-    with col1: age = st.number_input("Tuổi", 1, 120, st.session_state.get('user_age', 30), key="age_input")
-    with col2: height = st.number_input("Chiều cao (cm)", 50.0, 250.0, st.session_state.get('user_height', 167.0), step=0.5, format="%.1f", key="height_input")
-    with col3: weight = st.number_input("Cân nặng (kg)", 20.0, 200.0, st.session_state.get('user_weight', 64.0), step=0.1, format="%.1f", key="weight_input")
+    with col1: age = st.number_input("Tuổi", 1, 120, st.session_state.get('user_age', 21), key="age_input")
+    with col2: height = st.number_input("Chiều cao (cm)", 50.0, 250.0, st.session_state.get('user_height', 171.0), step=0.5, format="%.1f", key="height_input")
+    with col3: weight = st.number_input("Cân nặng (kg)", 20.0, 200.0, st.session_state.get('user_weight', 63.0), step=0.1, format="%.1f", key="weight_input")
 
     st.write("")
     calc_col1, calc_col2 = st.columns([3, 1])
